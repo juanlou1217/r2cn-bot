@@ -67,12 +67,14 @@ export async function newTask(repository: Repository, issue: Issue, score: numbe
 
 interface TaskUpdate {
     github_issue_id: number,
+    github_issue_title: string,
     score: number,
 }
 
 export async function updateTaskScore(issue: Issue, score: number) {
     const req = {
         github_issue_id: issue.id,
+        github_issue_title: issue.title,
         score: score,
     } as TaskUpdate;
 

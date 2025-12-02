@@ -11,7 +11,7 @@ export default (app: Probot) => {
     // 删除issues.opend 事件避免重复消息
     app.on(["issues.labeled"], async (context) => {
         const label = context.payload.label;
-        const labeled = label?.name.startsWith("r2cn-");
+        const labeled = label?.name.startsWith("r2cn-") && label?.name != "r2cn-complete";
         if (!labeled) {
             context.log.debug("Not R2cn score label, skipping message...")
             return

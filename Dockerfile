@@ -2,7 +2,7 @@ FROM node:20-slim
 
 WORKDIR /usr/src/app
 
-RUN apt-get update && apt-get install -y iputils-ping curl
+# RUN apt-get update && apt-get install -y iputils-ping curl
 
 COPY . .
 
