@@ -1,0 +1,64 @@
+name: R2CN Bot deploy
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Build, tag, and push docker image to Amazon ECR Public
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: m8q5m4u3
+          REPOSITORY: r2cn
+          IMAGE_TAG: bot-0.1.0-pre-release
+        run: |
+
+          IMAGE_BASE="$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY"
+
+          docker buildx build \
+          -t $IMAGE_BASE:$IMAGE_TAG \
+          --push .
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            docker pull public.ecr.aws/m8q5m4u3/r2cn:bot-0.1.0-pre-release &&
+            docker rm -f r2cn-bot || true &&
+            docker run -it -d --name r2cn-bot --network r2cn-network \
+            -e APP_ID=${{ secrets.APP_ID}} \
+            -e PRIVATE_KEY=${{secrets.PRIVATE_KEY}} \
+            -e WEBHOOK_SECRET=${{secrets.WEBHOOK_SECRET}} \
+            -e GITHUB_CLIENT_ID=${{secrets.APP_CLIENT_ID}} \
+            -e GITHUB_CLIENT_SECRET=${{secrets.APP_CLIENT_SECRET}} \
+            -e API_ENDPOINT=http://r2cn-api:8000/api/v1 \
+            -p 3000:3000 --restart=always \
+            public.ecr.aws/m8q5m4u3/r2cn:bot-0.1.0-pre-release
